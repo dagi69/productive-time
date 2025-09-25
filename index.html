@@ -1,13 +1,285 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Productive Timer Tracking App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productive Timer - Ethiopian Calendar</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Date Selection Page -->
+    <div id="dateSelectPage" class="page active">
+        <div class="container">
+            <div class="date-selector-card">
+                <div class="icon-container">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h1>Productive Timer</h1>
+                <p>Select a date to start tracking your productivity</p>
+                
+                <div class="form-group">
+                    <label for="yearSelect">Year</label>
+                    <select id="yearSelect" class="form-control">
+                        <!-- Years will be populated by JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="monthSelect">Month</label>
+                    <select id="monthSelect" class="form-control">
+                        <!-- Months will be populated by JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="daySelect">Day</label>
+                    <select id="daySelect" class="form-control">
+                        <!-- Days will be populated by JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="selected-date-preview">
+                    <p>Selected Date</p>
+                    <span id="selectedDateDisplay">1/Meskerem/2017</span>
+                </div>
+                
+                <button id="startTrackingBtn" class="btn btn-primary">
+                    <i class="fas fa-arrow-right"></i>
+                    Start Tracking
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Timer Page -->
+    <div id="mainTimerPage" class="page">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <button id="backToDateBtn" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Date Selection
+                </button>
+                <button id="viewDatabaseBtn" class="btn btn-accent">
+                    <i class="fas fa-database"></i>
+                    View Database
+                </button>
+            </div>
+
+            <!-- Selected Date Display -->
+            <div class="page-title">
+                <h1>Productive Timer</h1>
+                <p id="currentDateDisplay">1/Meskerem/2017</p>
+            </div>
+
+            <!-- Work Type Cards -->
+            <div class="work-cards">
+                <div class="work-card deep-work">
+                    <div class="work-header">
+                        <div class="work-indicator"></div>
+                        <h3>Deep Work</h3>
+                    </div>
+                    <div class="work-time" id="deepWorkTime">00:00:00</div>
+                </div>
+                
+                <div class="work-card shallow-work">
+                    <div class="work-header">
+                        <div class="work-indicator"></div>
+                        <h3>Shallow Work</h3>
+                    </div>
+                    <div class="work-time" id="shallowWorkTime">00:00:00</div>
+                </div>
+            </div>
+
+            <!-- Current Timer Display -->
+            <div id="currentTimerDisplay" class="current-timer" style="display: none;">
+                <h3 id="currentWorkType">Deep Work Session</h3>
+                <div class="timer-display" id="currentTimerTime">25:00</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="timerProgress"></div>
+                </div>
+            </div>
+
+            <!-- Add Timer Section -->
+            <div class="add-timer-section">
+                <div class="section-header">
+                    <i class="fas fa-plus"></i>
+                    <h3>Add Timer</h3>
+                </div>
+                
+                <div class="timer-inputs">
+                    <div class="time-input-group">
+                        <div class="input-group">
+                            <input type="number" id="timerMinutes" min="0" max="999" value="25" class="form-control">
+                            <label>Minutes</label>
+                        </div>
+                        <div class="input-group">
+                            <input type="number" id="timerSeconds" min="0" max="59" value="0" class="form-control">
+                            <label>Seconds</label>
+                        </div>
+                    </div>
+                    
+                    <div class="work-type-select">
+                        <label for="workTypeSelect">Work Type</label>
+                        <select id="workTypeSelect" class="form-control">
+                            <option value="deep">Deep Work</option>
+                            <option value="shallow">Shallow Work</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-buttons">
+                    <button id="startTimerBtn" class="btn btn-success">
+                        <i class="fas fa-play"></i>
+                        Start
+                    </button>
+                    <button id="pauseTimerBtn" class="btn btn-warning" disabled>
+                        <i class="fas fa-pause"></i>
+                        Pause
+                    </button>
+                    <button id="saveProgressBtn" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        Save Progress
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database View Page -->
+    <div id="databasePage" class="page">
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-left">
+                    <button id="backToTimerBtn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Timer
+                    </button>
+                    <h1>Productive Database</h1>
+                </div>
+                
+                <div class="header-right">
+                    <div id="connectionStatus" class="connection-status online">
+                        <i class="fas fa-wifi"></i>
+                        <span>Online</span>
+                    </div>
+                    <button id="refreshDataBtn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-indicator deep"></div>
+                        <span>Total Deep Work</span>
+                    </div>
+                    <div class="stat-value" id="totalDeepWork">00:00:00</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-indicator shallow"></div>
+                        <span>Total Shallow Work</span>
+                    </div>
+                    <div class="stat-value" id="totalShallowWork">00:00:00</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <i class="fas fa-clock"></i>
+                        <span>Total Time</span>
+                    </div>
+                    <div class="stat-value" id="totalTime">00:00:00</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <i class="fas fa-calendar"></i>
+                        <span>Sessions</span>
+                    </div>
+                    <div class="stat-value" id="totalSessions">0</div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="data-table-container">
+                <div class="table-header">
+                    <h2>
+                        <i class="fas fa-chart-line"></i>
+                        Session History
+                    </h2>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Deep Work</th>
+                                <th>Shallow Work</th>
+                                <th>Total Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                    
+                    <div id="noDataMessage" class="no-data" style="display: none;">
+                        <i class="fas fa-clock"></i>
+                        <p>No tracking data available yet.</p>
+                        <small>Start your first timer session to see data here.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Productivity Insights -->
+            <div id="insightsSection" class="insights-section" style="display: none;">
+                <h3>Productivity Insights</h3>
+                <div class="insights-grid">
+                    <div class="insight-item">
+                        <p>Deep Work Ratio</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill deep" id="deepWorkRatio"></div>
+                        </div>
+                        <span id="deepWorkPercentage">0%</span>
+                    </div>
+                    <div class="insight-item">
+                        <p>Shallow Work Ratio</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill shallow" id="shallowWorkRatio"></div>
+                        </div>
+                        <span id="shallowWorkPercentage">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <span>Syncing data...</span>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification" style="display: none;">
+        <div class="notification-content">
+            <i class="fas fa-check-circle"></i>
+            <span id="notificationMessage">Data saved successfully!</span>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
 </html>
