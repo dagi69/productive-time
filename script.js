@@ -4,12 +4,12 @@ To complete the Firebase integration for your Productive Timer app, follow these
 
 ## 1. Create a Firebase Project
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-)
-2. Click "Create a project\" or "Add project"
-3. Enter your project name (e.g., "productive-timer")
-4. Enable Google Analytics (optional)
-5. Click "Create project"
+//1. Go to [Firebase Console](https://console.firebase.google.com/)
+//)
+//2. Click "Create a project\" or "Add project"
+//3. Enter your project name (e.g., "productive-timer")
+//4. Enable Google Analytics (optional)
+//5. Click "Create project"
 
 ## 2. Set up Firestore Database
 
