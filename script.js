@@ -1,449 +1,85 @@
-import { db } from './firebase-config.js';
-import { 
-    collection, 
-    doc, 
-    setDoc, 
-    getDocs, 
-    query, 
-    orderBy,
-    serverTimestamp 
-} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+# Firebase Setup Instructions
 
-// Ethiopian calendar months
-const ethiopianMonths = [
-    'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
-    'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
-];
+To complete the Firebase integration for your Productive Timer app, follow these steps:
 
-// Global state
-let currentPage = 'dateSelect';
-let selectedDate = '';
-let timerData = {};
-let currentTimer = null;
-let timerInterval = null;
-let isTimerRunning = false;
-let currentWorkType = 'deep';
-let timerDuration = 0;
-let remainingTime = 0;
+## 1. Create a Firebase Project
 
-// Utility functions
-function formatTime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click "Create a project" or "Add project"
+3. Enter your project name (e.g., "productive-timer")
+4. Enable Google Analytics (optional)
+5. Click "Create project"
 
-function getCurrentEthiopianYear() {
-    return new Date().getFullYear() - 7; // Approximate Ethiopian year
-}
+## 2. Set up Firestore Database
 
-function getDaysInMonth(monthIndex) {
-    return monthIndex === 12 ? 6 : 30; // Pagume has 5-6 days, others have 30
-}
+1. In your Firebase project console, click "Firestore Database"
+2. Click "Create database"
+3. Choose "Start in test mode" for development (you can change this later)
+4. Select a location for your database (choose the closest to your users)
+5. Click "Done"
 
-function showNotification(message, isError = false) {
-    const notification = document.getElementById('notification');
-    const messageElement = document.getElementById('notificationMessage');
-    
-    messageElement.textContent = message;
-    notification.className = `notification ${isError ? 'error' : ''}`;
-    notification.style.display = 'block';
-    
-    setTimeout(() => {
-        notification.style.display = 'none';
-    }, 3000);
-}
+## 3. Get Firebase Configuration
 
-function showLoading(show = true) {
-    document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
-}
+1. In your Firebase project console, click the gear icon (Project settings)
+2. Scroll down to "Your apps" section
+3. Click the web icon (`</>`) to add a web app
+4. Register your app with a nickname (e.g., "productive-timer-web")
+5. Copy the Firebase configuration object that appears
 
-function updateConnectionStatus() {
-    const statusElement = document.getElementById('connectionStatus');
-    const isOnline = navigator.onLine;
-    
-    statusElement.className = `connection-status ${isOnline ? 'online' : 'offline'}`;
-    statusElement.innerHTML = `
-        <i class="fas fa-${isOnline ? 'wifi' : 'wifi-slash'}"></i>
-        <span>${isOnline ? 'Online' : 'Offline'}</span>
-    `;
-}
+## 4. Update Firebase Configuration
 
-// Page navigation
-function showPage(pageId) {
-    document.querySelectorAll('.page').forEach(page => {
-        page.classList.remove('active');
-    });
-    document.getElementById(pageId + 'Page').classList.add('active');
-    currentPage = pageId;
-}
+Replace the placeholder values in `firebase-config.js` with your actual Firebase configuration:
 
-// Firebase functions
-async function saveTimerSession(date, deepWork, shallowWork) {
-    try {
-        const totalTime = deepWork + shallowWork;
-        // Use the selected date as the document ID to ensure data is stored by date
-        const docRef = doc(db, 'timer_sessions', date.replace(/\//g, '_'));
-        
-        await setDoc(docRef, {
-            date: date,
-            deepWork: deepWork,
-            shallowWork: shallowWork,
-            totalTime: totalTime,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-        });
-        
-        // Update local data
-        timerData[date] = {
-            date: date,
-            deepWork: deepWork,
-            shallowWork: shallowWork,
-            totalTime: totalTime
-        };
-        
-        return true;
-    } catch (error) {
-        console.error('Error saving timer session:', error);
-        throw error;
+```javascript
+const firebaseConfig = {
+  apiKey: "your-actual-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-actual-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "your-actual-sender-id",
+  appId: "your-actual-app-id"
+};
+```
+
+## 5. Configure Firestore Security Rules (Optional for Production)
+
+For production, update your Firestore security rules in the Firebase console:
+
+1. Go to Firestore Database > Rules
+2. Replace the default rules with:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /timer_sessions/{document} {
+      allow read, write: if true; // For development only
+      // For production, add proper authentication rules
     }
+  }
 }
+```
 
-async function loadAllTimerData() {
-    try {
-        showLoading(true);
-        const q = query(collection(db, 'timer_sessions'), orderBy('createdAt', 'asc'));
-        const querySnapshot = await getDocs(q);
-        
-        timerData = {};
-        querySnapshot.forEach((doc) => {
-            const data = doc.data();
-            timerData[data.date] = {
-                date: data.date,
-                deepWork: data.deepWork || 0,
-                shallowWork: data.shallowWork || 0,
-                totalTime: data.totalTime || 0
-            };
-        });
-        
-        return timerData;
-    } catch (error) {
-        console.error('Error loading timer data:', error);
-        showNotification('Failed to load data. Please check your connection.', true);
-        throw error;
-    } finally {
-        showLoading(false);
-    }
-}
+## 6. Test the Integration
 
-// Date selector functions
-function populateYearSelect() {
-    const yearSelect = document.getElementById('yearSelect');
-    const currentYear = getCurrentEthiopianYear();
-    
-    yearSelect.innerHTML = '';
-    for (let i = currentYear - 5; i <= currentYear + 5; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        if (i === currentYear) option.selected = true;
-        yearSelect.appendChild(option);
-    }
-}
+1. Open your HTML file in a web browser
+2. Create a timer session and save it
+3. Check your Firestore console to see the data under the "timer_sessions" collection
+4. Refresh the page to verify data persistence
 
-function populateMonthSelect() {
-    const monthSelect = document.getElementById('monthSelect');
-    
-    monthSelect.innerHTML = '';
-    ethiopianMonths.forEach((month, index) => {
-        const option = document.createElement('option');
-        option.value = index;
-        option.textContent = month;
-        monthSelect.appendChild(option);
-    });
-}
+## 7. Deploy Your App (Optional)
 
-function populateDaySelect() {
-    const daySelect = document.getElementById('daySelect');
-    const monthSelect = document.getElementById('monthSelect');
-    const selectedMonth = parseInt(monthSelect.value);
-    const daysInMonth = getDaysInMonth(selectedMonth);
-    
-    daySelect.innerHTML = '';
-    for (let i = 1; i <= daysInMonth; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        daySelect.appendChild(option);
-    }
-}
+You can deploy your app using Firebase Hosting:
 
-function updateSelectedDateDisplay() {
-    const yearSelect = document.getElementById('yearSelect');
-    const monthSelect = document.getElementById('monthSelect');
-    const daySelect = document.getElementById('daySelect');
-    
-    const selectedYear = yearSelect.value;
-    const selectedMonth = parseInt(monthSelect.value);
-    const selectedDay = daySelect.value;
-    
-    const dateString = `${selectedDay}/${ethiopianMonths[selectedMonth]}/${selectedYear}`;
-    document.getElementById('selectedDateDisplay').textContent = dateString;
-    
-    return dateString;
-}
+1. Install Firebase CLI: `npm install -g firebase-tools`
+2. Login: `firebase login`
+3. Initialize hosting: `firebase init hosting`
+4. Deploy: `firebase deploy`
 
-// Timer functions
-function updateTimerDisplay() {
-    const currentSession = timerData[selectedDate] || { deepWork: 0, shallowWork: 0, totalTime: 0 };
-    
-    document.getElementById('deepWorkTime').textContent = formatTime(currentSession.deepWork);
-    document.getElementById('shallowWorkTime').textContent = formatTime(currentSession.shallowWork);
-    document.getElementById('currentDateDisplay').textContent = selectedDate;
-}
+Your Firebase integration is now complete! The app will automatically sync data to the cloud and work across multiple devices.
 
-function startTimer() {
-    const minutes = parseInt(document.getElementById('timerMinutes').value) || 0;
-    const seconds = parseInt(document.getElementById('timerSeconds').value) || 0;
-    const workType = document.getElementById('workTypeSelect').value;
-    
-    if (minutes === 0 && seconds === 0) {
-        showNotification('Please set a timer duration', true);
-        return;
-    }
-    
-    timerDuration = minutes * 60 + seconds;
-    remainingTime = timerDuration;
-    currentWorkType = workType;
-    isTimerRunning = true;
-    
-    // Show current timer display
-    const currentTimerDisplay = document.getElementById('currentTimerDisplay');
-    const currentWorkTypeElement = document.getElementById('currentWorkType');
-    const currentTimerTime = document.getElementById('currentTimerTime');
-    const timerProgress = document.getElementById('timerProgress');
-    
-    currentWorkTypeElement.textContent = `${workType === 'deep' ? 'Deep' : 'Shallow'} Work Session`;
-    currentTimerDisplay.style.display = 'block';
-    
-    // Update progress bar class
-    timerProgress.className = `progress-fill ${workType}`;
-    
-    // Update button states
-    document.getElementById('startTimerBtn').disabled = true;
-    document.getElementById('pauseTimerBtn').disabled = false;
-    
-    // Start countdown
-    timerInterval = setInterval(() => {
-        remainingTime--;
-        
-        // Update display
-        const minutes = Math.floor(remainingTime / 60);
-        const seconds = remainingTime % 60;
-        currentTimerTime.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        
-        // Update progress bar
-        const progress = ((timerDuration - remainingTime) / timerDuration) * 100;
-        timerProgress.style.width = `${progress}%`;
-        
-        // Timer finished
-        if (remainingTime <= 0) {
-            clearInterval(timerInterval);
-            timerFinished();
-        }
-    }, 1000);
-}
+## Troubleshooting
 
-function pauseTimer() {
-    if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-    }
-    
-    isTimerRunning = false;
-    document.getElementById('startTimerBtn').disabled = false;
-    document.getElementById('pauseTimerBtn').disabled = true;
-}
-
-function timerFinished() {
-    isTimerRunning = false;
-    
-    // Update the appropriate work type
-    const currentSession = timerData[selectedDate] || { deepWork: 0, shallowWork: 0, totalTime: 0 };
-    
-    if (currentWorkType === 'deep') {
-        currentSession.deepWork += timerDuration;
-    } else {
-        currentSession.shallowWork += timerDuration;
-    }
-    
-    currentSession.totalTime = currentSession.deepWork + currentSession.shallowWork;
-    currentSession.date = selectedDate;
-    
-    // Update local data
-    timerData[selectedDate] = currentSession;
-    
-    // Update display
-    updateTimerDisplay();
-    
-    // Hide current timer display
-    document.getElementById('currentTimerDisplay').style.display = 'none';
-    
-    // Reset button states
-    document.getElementById('startTimerBtn').disabled = false;
-    document.getElementById('pauseTimerBtn').disabled = true;
-    
-    // Show notification
-    showNotification(`${currentWorkType === 'deep' ? 'Deep' : 'Shallow'} work session completed!`);
-    
-    // Reset timer inputs
-    document.getElementById('timerMinutes').value = 25;
-    document.getElementById('timerSeconds').value = 0;
-}
-
-async function saveProgress() {
-    if (!navigator.onLine) {
-        showNotification('Cannot save data while offline', true);
-        return;
-    }
-    
-    const currentSession = timerData[selectedDate] || { deepWork: 0, shallowWork: 0, totalTime: 0 };
-    
-    try {
-        await saveTimerSession(selectedDate, currentSession.deepWork, currentSession.shallowWork);
-        showNotification('Data saved successfully!');
-    } catch (error) {
-        showNotification('Failed to save data. Please try again.', true);
-    }
-}
-
-// Database view functions
-function updateDatabaseView() {
-    // Sort sessions by date (Ethiopian calendar format: day/month/year)
-    const sessions = Object.values(timerData).sort((a, b) => {
-        // Parse Ethiopian date format: "1/Meskerem/2017"
-        const parseEthiopianDate = (dateStr) => {
-            const [day, month, year] = dateStr.split('/');
-            const monthIndex = ethiopianMonths.indexOf(month);
-            return new Date(parseInt(year) + 7, monthIndex, parseInt(day)); // Convert to approximate Gregorian
-        };
-        
-        return parseEthiopianDate(a.date).getTime() - parseEthiopianDate(b.date).getTime();
-    });
-    
-    // Update statistics
-    const totalDeepWork = sessions.reduce((sum, session) => sum + session.deepWork, 0);
-    const totalShallowWork = sessions.reduce((sum, session) => sum + session.shallowWork, 0);
-    const totalTime = totalDeepWork + totalShallowWork;
-    
-    document.getElementById('totalDeepWork').textContent = formatTime(totalDeepWork);
-    document.getElementById('totalShallowWork').textContent = formatTime(totalShallowWork);
-    document.getElementById('totalTime').textContent = formatTime(totalTime);
-    document.getElementById('totalSessions').textContent = sessions.length;
-    
-    // Update table
-    const tableBody = document.getElementById('dataTableBody');
-    const noDataMessage = document.getElementById('noDataMessage');
-    const insightsSection = document.getElementById('insightsSection');
-    
-    if (sessions.length === 0) {
-        tableBody.innerHTML = '';
-        noDataMessage.style.display = 'block';
-        insightsSection.style.display = 'none';
-    } else {
-        noDataMessage.style.display = 'none';
-        insightsSection.style.display = 'block';
-        
-        tableBody.innerHTML = sessions.map(session => `
-            <tr>
-                <td>
-                    <i class="fas fa-calendar" style="color: #6b7280; margin-right: 8px;"></i>
-                    ${session.date}
-                </td>
-                <td style="color: #3b82f6;">${formatTime(session.deepWork)}</td>
-                <td style="color: #10b981;">${formatTime(session.shallowWork)}</td>
-                <td style="font-weight: 600;">${formatTime(session.totalTime)}</td>
-            </tr>
-        `).join('');
-        
-        // Update insights
-        if (totalTime > 0) {
-            const deepWorkPercentage = Math.round((totalDeepWork / totalTime) * 100);
-            const shallowWorkPercentage = Math.round((totalShallowWork / totalTime) * 100);
-            
-            document.getElementById('deepWorkRatio').style.width = `${deepWorkPercentage}%`;
-            document.getElementById('shallowWorkRatio').style.width = `${shallowWorkPercentage}%`;
-            document.getElementById('deepWorkPercentage').textContent = `${deepWorkPercentage}%`;
-            document.getElementById('shallowWorkPercentage').textContent = `${shallowWorkPercentage}%`;
-        }
-    }
-}
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize date selectors
-    populateYearSelect();
-    populateMonthSelect();
-    populateDaySelect();
-    updateSelectedDateDisplay();
-    
-    // Update connection status
-    updateConnectionStatus();
-    
-    // Load initial data
-    loadAllTimerData().catch(() => {
-        // Handle error silently, already shown in loadAllTimerData
-    });
-    
-    // Date selector events
-    document.getElementById('yearSelect').addEventListener('change', updateSelectedDateDisplay);
-    document.getElementById('monthSelect').addEventListener('change', function() {
-        populateDaySelect();
-        updateSelectedDateDisplay();
-    });
-    document.getElementById('daySelect').addEventListener('change', updateSelectedDateDisplay);
-    
-    // Start tracking button
-    document.getElementById('startTrackingBtn').addEventListener('click', function() {
-        selectedDate = updateSelectedDateDisplay();
-        updateTimerDisplay();
-        showPage('mainTimer');
-    });
-    
-    // Navigation buttons
-    document.getElementById('backToDateBtn').addEventListener('click', () => showPage('dateSelect'));
-    document.getElementById('viewDatabaseBtn').addEventListener('click', function() {
-        updateDatabaseView();
-        showPage('database');
-    });
-    document.getElementById('backToTimerBtn').addEventListener('click', () => showPage('mainTimer'));
-    
-    // Timer controls
-    document.getElementById('startTimerBtn').addEventListener('click', startTimer);
-    document.getElementById('pauseTimerBtn').addEventListener('click', pauseTimer);
-    document.getElementById('saveProgressBtn').addEventListener('click', saveProgress);
-    
-    // Database refresh
-    document.getElementById('refreshDataBtn').addEventListener('click', async function() {
-        try {
-            await loadAllTimerData();
-            updateDatabaseView();
-            showNotification('Data refreshed successfully!');
-        } catch (error) {
-            // Error already handled in loadAllTimerData
-        }
-    });
-    
-    // Online/offline events
-    window.addEventListener('online', updateConnectionStatus);
-    window.addEventListener('offline', updateConnectionStatus);
-    
-    // Prevent form submission on enter
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-        }
-    });
-});
+- **CORS Issues**: Make sure you're serving the HTML file from a web server, not opening it directly in the browser
+- **Connection Issues**: Check your internet connection and Firebase project settings
+- **Data Not Saving**: Verify your Firebase configuration and check the browser console for errors
