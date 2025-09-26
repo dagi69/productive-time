@@ -84,13 +84,15 @@ function showPage(pageId) {
 async function saveTimerSession(date, deepWork, shallowWork) {
     try {
         const totalTime = deepWork + shallowWork;
-        const docRef = doc(db, 'timer_sessions', date);
+        // Use the selected date as the document ID to ensure data is stored by date
+        const docRef = doc(db, 'timer_sessions', date.replace(/\//g, '_'));
         
         await setDoc(docRef, {
             date: date,
             deepWork: deepWork,
             shallowWork: shallowWork,
             totalTime: totalTime,
+            createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
         });
         
@@ -112,7 +114,7 @@ async function saveTimerSession(date, deepWork, shallowWork) {
 async function loadAllTimerData() {
     try {
         showLoading(true);
-        const q = query(collection(db, 'timer_sessions'), orderBy('date', 'asc'));
+        const q = query(collection(db, 'timer_sessions'), orderBy('createdAt', 'asc'));
         const querySnapshot = await getDocs(q);
         
         timerData = {};
@@ -319,9 +321,17 @@ async function saveProgress() {
 
 // Database view functions
 function updateDatabaseView() {
-    const sessions = Object.values(timerData).sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    // Sort sessions by date (Ethiopian calendar format: day/month/year)
+    const sessions = Object.values(timerData).sort((a, b) => {
+        // Parse Ethiopian date format: "1/Meskerem/2017"
+        const parseEthiopianDate = (dateStr) => {
+            const [day, month, year] = dateStr.split('/');
+            const monthIndex = ethiopianMonths.indexOf(month);
+            return new Date(parseInt(year) + 7, monthIndex, parseInt(day)); // Convert to approximate Gregorian
+        };
+        
+        return parseEthiopianDate(a.date).getTime() - parseEthiopianDate(b.date).getTime();
+    });
     
     // Update statistics
     const totalDeepWork = sessions.reduce((sum, session) => sum + session.deepWork, 0);
