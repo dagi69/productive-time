@@ -1,88 +1,222 @@
-# Firebase Setup Instructions
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productive Timer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Connection Status -->
+    <div id="connectionStatus" class="connection-status offline">
+        <i class="fas fa-wifi"></i>
+        <span>Offline</span>
+    </div>
 
-To complete the Firebase integration for your Productive Timer app, follow these steps:
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Syncing data...</p>
+    </div>
 
-## 1. Create a Firebase Project
+    <!-- Date Selection Page -->
+    <div id="dateSelectionPage" class="page active">
+        <div class="container">
+            <div class="header">
+                <h1><i class="fas fa-clock"></i> Productive Timer</h1>
+                <p>Track your deep work and shallow work sessions</p>
+            </div>
+            
+            <div class="date-selector-card">
+                <h2>Select Date</h2>
+                <div class="date-inputs">
+                    <div class="input-group">
+                        <label for="daySelect">Day</label>
+                        <select id="daySelect">
+                            <!-- Days will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="monthSelect">Month</label>
+                        <select id="monthSelect">
+                            <option value="Meskerem">Meskerem</option>
+                            <option value="Tikimt">Tikimt</option>
+                            <option value="Hidar">Hidar</option>
+                            <option value="Tahsas">Tahsas</option>
+                            <option value="Tir">Tir</option>
+                            <option value="Yekatit">Yekatit</option>
+                            <option value="Megabit">Megabit</option>
+                            <option value="Miazia">Miazia</option>
+                            <option value="Ginbot">Ginbot</option>
+                            <option value="Sene">Sene</option>
+                            <option value="Hamle">Hamle</option>
+                            <option value="Nehase">Nehase</option>
+                            <option value="Pagume">Pagume</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="yearSelect">Year</label>
+                        <select id="yearSelect">
+                            <!-- Years will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+                <button id="startBtn" class="btn btn-primary">
+                    <i class="fas fa-play"></i>
+                    Start Session
+                </button>
+            </div>
+        </div>
+    </div>
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Create a project" or "Add project"
-3. Enter your project name (e.g., "productive-timer")
-4. Enable Google Analytics (optional)
-5. Click "Create project"
+    <!-- Main Timer Page -->
+    <div id="mainTimerPage" class="page">
+        <div class="container">
+            <div class="header">
+                <h1 id="selectedDateDisplay">Selected Date</h1>
+                <button id="viewDatabaseBtn" class="btn btn-secondary">
+                    <i class="fas fa-database"></i>
+                    View Database
+                </button>
+            </div>
 
-## 2. Set up Firestore Database
+            <!-- Work Type Cards -->
+            <div class="work-cards">
+                <div class="work-card deep-work">
+                    <h3><i class="fas fa-brain"></i> Deep Work</h3>
+                    <div class="timer-display" id="deepWorkTimer">00:00:00</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="deepWorkProgress"></div>
+                    </div>
+                </div>
+                <div class="work-card shallow-work">
+                    <h3><i class="fas fa-tasks"></i> Shallow Work</h3>
+                    <div class="timer-display" id="shallowWorkTimer">00:00:00</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="shallowWorkProgress"></div>
+                    </div>
+                </div>
+            </div>
 
-1. In your Firebase project console, click "Firestore Database"
-2. Click "Create database"
-3. Choose "Start in test mode" for development (you can change this later)
-4. Select a location for your database (choose the closest to your users)
-5. Click "Done"
+            <!-- Add Timer Section -->
+            <div class="add-timer-section">
+                <h2>Add Timer</h2>
+                <div class="timer-controls">
+                    <div class="input-group">
+                        <label for="timerInput">Set Timer (minutes)</label>
+                        <input type="number" id="timerInput" min="1" max="480" value="25" placeholder="Enter minutes">
+                    </div>
+                    <div class="input-group">
+                        <label for="workTypeSelect">Work Type</label>
+                        <select id="workTypeSelect">
+                            <option value="deep">Deep Work</option>
+                            <option value="shallow">Shallow Work</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="current-timer">
+                    <div class="timer-display" id="currentTimer">00:00:00</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="currentProgress"></div>
+                    </div>
+                </div>
 
-## 3. Get Firebase Configuration
-
-1. In your Firebase project console, click the gear icon (Project settings)
-2. Scroll down to "Your apps" section
-3. Click the web icon (`</>`) to add a web app
-4. Register your app with a nickname (e.g., "productive-timer-web")
-5. Copy the Firebase configuration object that appears
-
-## 4. Update Firebase Configuration
-
-Replace the placeholder values in `firebase-config.js` with your actual Firebase configuration:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "your-actual-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-actual-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "your-actual-sender-id",
-  appId: "your-actual-app-id"
-};
-```
-
-## 5. Configure Firestore Security Rules (Optional for Production)
-
-For production, update your Firestore security rules in the Firebase console:
-
-1. Go to Firestore Database > Rules
-2. Replace the default rules with:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /timer_sessions/{document} {
+                <div class="action-buttons">
+                    <button id="startTimerBtn" class="btn btn-success">
+                        <i class="fas fa-play"></i>
+                        Start
+                    </button>
+                    <button id="pauseTimerBtn" class="btn btn-warning" style="display: none;">
+                        <i class="fas fa-pause"></i>
+                        Pause
+                    </button>
                     <button id="resumeTimerBtn" class="btn btn-info" style="display: none;">
                         <i class="fas fa-play"></i>
                         Resume
                     </button>
-      // For production, add proper authentication rules
-    }
-  }
-}
-```
+                </div>
 
-## 6. Test the Integration
+                <button id="saveDataBtn" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Save Session
+                </button>
+            </div>
 
-1. Open your HTML file in a web browser
-2. Create a timer session and save it
-3. Check your Firestore console to see the data under the "timer_sessions" collection
-4. Refresh the page to verify data persistence
+            <button id="backToDateBtn" class="btn btn-secondary back-btn">
+                <i class="fas fa-arrow-left"></i>
+                Back to Date Selection
+            </button>
+        </div>
+    </div>
 
-## 7. Deploy Your App (Optional)
+    <!-- Database View Page -->
+    <div id="databasePage" class="page">
+        <div class="container">
+            <div class="header">
+                <h1><i class="fas fa-database"></i> Productivity Database</h1>
+                <div class="header-actions">
+                    <button id="refreshDataBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh
+                    </button>
+                    <button id="backToTimerBtn" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Timer
+                    </button>
+                </div>
+            </div>
 
-You can deploy your app using Firebase Hosting:
+            <div class="database-stats">
+                <div class="stat-card">
+                    <h3>Total Sessions</h3>
+                    <div class="stat-value" id="totalSessions">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Deep Work</h3>
+                    <div class="stat-value" id="totalDeepWork">0h 0m</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Shallow Work</h3>
+                    <div class="stat-value" id="totalShallowWork">0h 0m</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Productivity Ratio</h3>
+                    <div class="stat-value" id="productivityRatio">0%</div>
+                </div>
+            </div>
 
-1. Install Firebase CLI: `npm install -g firebase-tools`
-2. Login: `firebase login`
-3. Initialize hosting: `firebase init hosting`
-4. Deploy: `firebase deploy`
+            <div class="database-table-container">
+                <table class="database-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Deep Work</th>
+                            <th>Shallow Work</th>
+                            <th>Total Time</th>
+                            <th>Ratio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="databaseTableBody">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-Your Firebase integration is now complete! The app will automatically sync data to the cloud and work across multiple devices.
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <div class="notification-content">
+            <i class="fas fa-check-circle"></i>
+            <span id="notificationText">Success!</span>
+        </div>
+    </div>
 
-## Troubleshooting
-
-- **CORS Issues**: Make sure you're serving the HTML file from a web server, not opening it directly in the browser
-- **Connection Issues**: Check your internet connection and Firebase project settings
-- **Data Not Saving**: Verify your Firebase configuration and check the browser console for errors
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
