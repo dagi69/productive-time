@@ -79,3 +79,11 @@ body {
     font-size: 0.9rem;
     color: #666;
 }
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block !important;
+}
