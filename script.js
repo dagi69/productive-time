@@ -1,6 +1,6 @@
 // Firebase configuration and initialization
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy, Timestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy, Timestamp, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -27,6 +27,12 @@ let timerInterval = null;
 let isTimerRunning = false;
 let isPaused = false;
 let currentWorkType = 'deep';
+
+// Live timer variables
+let timerStartTime = null;
+let timerDuration = 0;
+let timerEndTime = null;
+let backgroundCheckInterval = null;
 
 // Ethiopian months
 const ethiopianMonths = [
@@ -88,6 +94,102 @@ function updateConnectionStatus() {
     icon.className = 'fas fa-wifi-slash';
     text.textContent = 'Offline';
   }
+}
+
+// Live Timer Functions
+function saveTimerState(startTime, duration, endTime, workType, date) {
+  const timerState = {
+    startTime: startTime,
+    duration: duration,
+    endTime: endTime,
+    workType: workType,
+    date: date,
+    isActive: true
+  };
+  localStorage.setItem('activeTimer', JSON.stringify(timerState));
+}
+
+function clearTimerState() {
+  localStorage.removeItem('activeTimer');
+}
+
+function getTimerState() {
+  const saved = localStorage.getItem('activeTimer');
+  return saved ? JSON.parse(saved) : null;
+}
+
+async function saveCompletedTimer(workType, duration, date) {
+  try {
+    const dateData = await loadDateData(date);
+    
+    if (workType === 'deep') {
+      deepWorkTime = (dateData.deepWork || 0) + duration;
+      shallowWorkTime = dateData.shallowWork || 0;
+    } else {
+      deepWorkTime = dateData.deepWork || 0;
+      shallowWorkTime = (dateData.shallowWork || 0) + duration;
+    }
+    
+    await saveTimerData(date, deepWorkTime, shallowWorkTime);
+    updateWorkTimers();
+    showNotification(`${workType === 'deep' ? 'Deep' : 'Shallow'} work session completed and saved!`);
+  } catch (error) {
+    console.error('Error saving completed timer:', error);
+    showNotification('Timer completed but failed to save', 'error');
+  }
+}
+
+function checkBackgroundTimer() {
+  const timerState = getTimerState();
+  if (!timerState || !timerState.isActive) return;
+  
+  const now = Date.now();
+  const timeElapsed = now - timerState.startTime;
+  
+  if (timeElapsed >= timerState.duration) {
+    // Timer completed in background
+    clearTimerState();
+    saveCompletedTimer(timerState.workType, timerState.duration / 1000, timerState.date);
+    resetTimer();
+    showNotification('Background timer completed!');
+  } else {
+    // Timer still running
+    const remainingTime = Math.ceil((timerState.duration - timeElapsed) / 1000);
+    currentTimer = remainingTime;
+    timerStartTime = timerState.startTime;
+    timerDuration = timerState.duration;
+    timerEndTime = timerState.endTime;
+    currentWorkType = timerState.workType;
+    isTimerRunning = true;
+    isPaused = false;
+    
+    // Update UI
+    document.getElementById('timerInput').value = Math.ceil(timerState.duration / 60000);
+    document.getElementById('workTypeSelect').value = timerState.workType;
+    updateTimerDisplay();
+    updateTimerButtons();
+    
+    // Start live updates
+    startLiveTimer();
+  }
+}
+
+function startLiveTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  
+  timerInterval = setInterval(() => {
+    const now = Date.now();
+    const timeElapsed = now - timerStartTime;
+    const remainingTime = Math.max(0, Math.ceil((timerDuration - timeElapsed) / 1000));
+    
+    currentTimer = remainingTime;
+    updateTimerDisplay();
+    updateProgress();
+    
+    if (remainingTime <= 0) {
+      completeTimer();
+    }
+  }, 1000);
 }
 
 // Firebase functions
@@ -154,8 +256,15 @@ async function loadDateData(date) {
   }
   
   try {
-    const allData = await loadAllTimerData();
-    return allData[date] || { deepWork: 0, shallowWork: 0, totalTime: 0 };
+    const docId = date.replace(/\//g, '_');
+    const docRef = doc(db, 'timer_sessions', docId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return docSnap.data();
+    } else {
+      return { deepWork: 0, shallowWork: 0, totalTime: 0 };
+    }
   } catch (error) {
     console.error('Error loading date data:', error);
     return { deepWork: 0, shallowWork: 0, totalTime: 0 };
@@ -181,23 +290,25 @@ function startTimer() {
     return;
   }
   
+  const now = Date.now();
+  const durationMs = minutes * 60 * 1000;
+  
+  timerStartTime = now;
+  timerDuration = durationMs;
+  timerEndTime = now + durationMs;
   currentTimer = minutes * 60;
   currentWorkType = document.getElementById('workTypeSelect').value;
   isTimerRunning = true;
   isPaused = false;
   
+  // Save timer state for background operation
+  saveTimerState(timerStartTime, timerDuration, timerEndTime, currentWorkType, selectedDate);
+  
   updateTimerDisplay();
   updateTimerButtons();
+  startLiveTimer();
   
-  timerInterval = setInterval(() => {
-    currentTimer--;
-    updateTimerDisplay();
-    updateProgress();
-    
-    if (currentTimer <= 0) {
-      completeTimer();
-    }
-  }, 1000);
+  showNotification(`${currentWorkType === 'deep' ? 'Deep' : 'Shallow'} work timer started!`);
 }
 
 function pauseTimer() {
@@ -207,24 +318,36 @@ function pauseTimer() {
   }
   isTimerRunning = false;
   isPaused = true;
+  
+  // Update saved state to paused
+  const timerState = getTimerState();
+  if (timerState) {
+    timerState.isActive = false;
+    timerState.pausedAt = Date.now();
+    timerState.remainingTime = currentTimer;
+    localStorage.setItem('activeTimer', JSON.stringify(timerState));
+  }
+  
   updateTimerButtons();
+  showNotification('Timer paused');
 }
 
 function resumeTimer() {
   if (currentTimer > 0) {
+    const now = Date.now();
+    timerStartTime = now;
+    timerDuration = currentTimer * 1000;
+    timerEndTime = now + timerDuration;
+    
     isTimerRunning = true;
     isPaused = false;
-    updateTimerButtons();
     
-    timerInterval = setInterval(() => {
-      currentTimer--;
-      updateTimerDisplay();
-      updateProgress();
-      
-      if (currentTimer <= 0) {
-        completeTimer();
-      }
-    }, 1000);
+    // Update saved state
+    saveTimerState(timerStartTime, timerDuration, timerEndTime, currentWorkType, selectedDate);
+    
+    updateTimerButtons();
+    startLiveTimer();
+    showNotification('Timer resumed');
   }
 }
 
@@ -243,9 +366,15 @@ function completeTimer() {
     shallowWorkTime += completedSeconds;
   }
   
+  // Clear saved timer state
+  clearTimerState();
+  
+  // Auto-save completed session
+  saveTimerData(selectedDate, deepWorkTime, shallowWorkTime);
+  
   updateWorkTimers();
   resetTimer();
-  showNotification(`${currentWorkType === 'deep' ? 'Deep' : 'Shallow'} work session completed!`);
+  showNotification(`${currentWorkType === 'deep' ? 'Deep' : 'Shallow'} work session completed and saved!`);
 }
 
 function resetTimer() {
@@ -254,9 +383,14 @@ function resetTimer() {
     timerInterval = null;
   }
   
+  clearTimerState();
   currentTimer = 0;
   isTimerRunning = false;
   isPaused = false;
+  timerStartTime = null;
+  timerDuration = 0;
+  timerEndTime = null;
+  
   updateTimerDisplay();
   updateTimerButtons();
   updateProgress();
@@ -390,9 +524,15 @@ document.addEventListener('DOMContentLoaded', function() {
   updateConnectionStatus();
   updateTimerButtons();
   
+  // Check for background timer on load
+  checkBackgroundTimer();
+  
   // Connection status
   window.addEventListener('online', updateConnectionStatus);
   window.addEventListener('offline', updateConnectionStatus);
+  
+  // Check for background timer periodically
+  backgroundCheckInterval = setInterval(checkBackgroundTimer, 5000);
   
   // Date selection page
   document.getElementById('startBtn').addEventListener('click', async function() {
@@ -438,5 +578,18 @@ document.addEventListener('DOMContentLoaded', function() {
   
   document.getElementById('refreshDataBtn').addEventListener('click', function() {
     updateDatabaseView();
+  });
+  
+  // Handle page visibility changes
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+      // Page became visible, check for background timer
+      checkBackgroundTimer();
+    }
+  });
+  
+  // Handle browser close/refresh
+  window.addEventListener('beforeunload', function() {
+    // Timer state is already saved in localStorage, no need to do anything special
   });
 });
