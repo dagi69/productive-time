@@ -351,27 +351,33 @@ function resumeTimer() {
   }
 }
 
-function completeTimer() {
+async function completeTimer() {
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
   }
-  
-  const timerInput = document.getElementById('timerInput');
-  const completedSeconds = parseInt(timerInput.value) * 60;
-  
+
+  // Prefer timerDuration (ms) converted to seconds
+  let completedSeconds;
+  if (timerDuration && typeof timerDuration === 'number' && timerDuration > 0) {
+    completedSeconds = Math.round(timerDuration / 1000);
+  } else {
+    const timerInput = document.getElementById('timerInput');
+    completedSeconds = (parseInt(timerInput.value, 10) || 0) * 60;
+  }
+
   if (currentWorkType === 'deep') {
     deepWorkTime += completedSeconds;
   } else {
     shallowWorkTime += completedSeconds;
   }
-  
+
   // Clear saved timer state
   clearTimerState();
-  
+
   // Auto-save completed session
-  saveTimerData(selectedDate, deepWorkTime, shallowWorkTime);
-  
+  await saveTimerData(selectedDate, deepWorkTime, shallowWorkTime);
+
   updateWorkTimers();
   resetTimer();
   showNotification(`${currentWorkType === 'deep' ? 'Deep' : 'Shallow'} work session completed and saved!`);
@@ -518,78 +524,53 @@ function initializeDateSelectors() {
 }
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  // Initialize date selectors
   initializeDateSelectors();
+  
+  // Set up connection status
   updateConnectionStatus();
-  updateTimerButtons();
-  
-  // Check for background timer on load
-  checkBackgroundTimer();
-  
-  // Connection status
   window.addEventListener('online', updateConnectionStatus);
   window.addEventListener('offline', updateConnectionStatus);
   
-  // Check for background timer periodically
-  backgroundCheckInterval = setInterval(checkBackgroundTimer, 5000);
-  
-  // Date selection page
-  document.getElementById('startBtn').addEventListener('click', async function() {
+  // Page navigation
+  document.getElementById('goToTimerBtn').addEventListener('click', async () => {
     const day = document.getElementById('daySelect').value;
     const month = document.getElementById('monthSelect').value;
     const year = document.getElementById('yearSelect').value;
-    
     selectedDate = `${day}/${month}/${year}`;
-    document.getElementById('selectedDateDisplay').textContent = selectedDate;
     
-    // Load existing data for this date
     const dateData = await loadDateData(selectedDate);
     deepWorkTime = dateData.deepWork || 0;
     shallowWorkTime = dateData.shallowWork || 0;
     
     updateWorkTimers();
-    showPage('mainTimer');
+    showPage('timer');
+    
+    // Check for active timer
+    checkBackgroundTimer();
   });
   
-  // Main timer page
-  document.getElementById('startTimerBtn').addEventListener('click', startTimer);
-  document.getElementById('pauseTimerBtn').addEventListener('click', pauseTimer);
-  document.getElementById('resumeTimerBtn').addEventListener('click', resumeTimer);
-  
-  document.getElementById('saveDataBtn').addEventListener('click', async function() {
-    await saveTimerData(selectedDate, deepWorkTime, shallowWorkTime);
-  });
-  
-  document.getElementById('viewDatabaseBtn').addEventListener('click', function() {
-    updateDatabaseView();
+  document.getElementById('goToDatabaseBtn').addEventListener('click', async () => {
     showPage('database');
+    await updateDatabaseView();
   });
   
-  document.getElementById('backToDateBtn').addEventListener('click', function() {
-    resetTimer();
+  document.getElementById('backToDateBtn').addEventListener('click', () => {
     showPage('dateSelection');
   });
   
-  // Database page
-  document.getElementById('backToTimerBtn').addEventListener('click', function() {
-    showPage('mainTimer');
+  document.getElementById('backToTimerBtn').addEventListener('click', () => {
+    showPage('timer');
   });
   
-  document.getElementById('refreshDataBtn').addEventListener('click', function() {
-    updateDatabaseView();
-  });
+  // Timer buttons
+  document.getElementById('startTimerBtn').addEventListener('click', startTimer);
+  document.getElementById('pauseTimerBtn').addEventListener('click', pauseTimer);
+  document.getElementById('resumeTimerBtn').addEventListener('click', resumeTimer);
+  document.getElementById('completeTimerBtn').addEventListener('click', completeTimer);
+  document.getElementById('resetTimerBtn').addEventListener('click', resetTimer);
   
-  // Handle page visibility changes
-  document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-      // Page became visible, check for background timer
-      checkBackgroundTimer();
-    }
-  });
-  
-  // Handle browser close/refresh
-  window.addEventListener('beforeunload', function() {
-    // Timer state is already saved in localStorage, no need to do anything special
-  });
+  // Periodic background check (every 30s)
+  backgroundCheckInterval = setInterval(checkBackgroundTimer, 30000);
 });
