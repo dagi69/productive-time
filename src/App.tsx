@@ -102,7 +102,7 @@ function App() {
       setError('Data saved successfully!');
       setTimeout(() => setError(''), 3000);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save data. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Data saved locally. Configure Firebase for cloud sync.';
       setError(errorMessage);
       console.error('Error saving timer data:', err);
     } finally {
