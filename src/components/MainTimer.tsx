@@ -45,9 +45,15 @@ const MainTimer: React.FC<MainTimerProps> = ({
             setIsRunning(false);
             // Update the appropriate work type timer
             if (workType === 'deep') {
-              setDeepWorkTime(prev => prev + (timerMinutes * 60 + timerSeconds));
+              const newDeepWorkTime = deepWorkTime + (timerMinutes * 60 + timerSeconds);
+              setDeepWorkTime(newDeepWorkTime);
+              // Auto-save when timer finishes
+              onSave(newDeepWorkTime, shallowWorkTime);
             } else {
-              setShallowWorkTime(prev => prev + (timerMinutes * 60 + timerSeconds));
+              const newShallowWorkTime = shallowWorkTime + (timerMinutes * 60 + timerSeconds);
+              setShallowWorkTime(newShallowWorkTime);
+              // Auto-save when timer finishes
+              onSave(deepWorkTime, newShallowWorkTime);
             }
             return 0;
           }
@@ -59,7 +65,7 @@ const MainTimer: React.FC<MainTimerProps> = ({
     }
 
     return () => clearInterval(intervalRef.current);
-  }, [isRunning, currentTimer, workType, timerMinutes, timerSeconds]);
+  }, [isRunning, currentTimer, workType, timerMinutes, timerSeconds, deepWorkTime, shallowWorkTime, onSave]);
 
   const handleStart = () => {
     if (currentTimer === 0) {
