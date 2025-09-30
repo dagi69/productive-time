@@ -22,7 +22,10 @@ export const saveTimerSession = async (session: TimerSession): Promise<void> => 
     }, { merge: true });
   } catch (error) {
     console.error('Error saving timer session:', error);
-    throw new Error('Failed to save timer session');
+    if (error instanceof Error && error.message.includes('Missing or insufficient permissions')) {
+      throw new Error('Firebase permissions not configured. Please check your Firestore security rules.');
+    }
+    throw new Error('Failed to save timer session. Please check your internet connection.');
   }
 };
 

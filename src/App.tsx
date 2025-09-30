@@ -102,7 +102,8 @@ function App() {
       setError('Data saved successfully!');
       setTimeout(() => setError(''), 3000);
     } catch (err) {
-      setError('Failed to save data. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save data. Please try again.';
+      setError(errorMessage);
       console.error('Error saving timer data:', err);
     } finally {
       setIsLoading(false);

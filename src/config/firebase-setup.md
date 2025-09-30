@@ -43,20 +43,26 @@ const firebaseConfig = {
 
 ## 5. Configure Firestore Security Rules (Optional)
 
-For production, update your Firestore security rules:
+**IMPORTANT: You must configure Firestore security rules for the app to work.**
+
+1. Go to your Firebase Console
+2. Navigate to "Firestore Database" > "Rules"
+3. Replace the default rules with:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /timer_sessions/{document} {
-      allow read, write: if true; // For development
-      // For production, add proper authentication rules
+      allow read, write: if true;
     }
   }
 }
 ```
 
+4. Click "Publish" to save the rules
+
+**Note:** These rules allow unrestricted access for development. For production, implement proper authentication and user-specific rules.
 ## 6. Test the Integration
 
 1. Start your development server
